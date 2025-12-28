@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>빌더 패턴: 테크 스토어</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-panel: rgba(30, 41, 59, 0.7);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --accent: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-dark);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Utility */
+        .glass {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: var(--glass-border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Scoped Layout */
+        header {
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: var(--glass-border);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--text-main) 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            overflow: hidden;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Builder Panel (Left) */
+        .builder-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .panel-header {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        select,
+        input,
+        button {
+            appearance: none;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        select:focus,
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        button.action-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button.action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        button.action-btn:active {
+            transform: translateY(0);
+        }
+
+        button.secondary-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+        }
+
+        button.secondary-btn:hover {
+            border-color: var(--text-muted);
+        }
+
+        /* The Pipeline Visualizer */
+        .pipeline-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px dashed var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-height: 200px;
+        }
+
+        .pipeline-step {
+            background: var(--bg-panel);
+            border: var(--glass-border);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .pipeline-step::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 60%;
+            border-radius: 0 4px 4px 0;
+            background: var(--accent);
+        }
+
+        .pipeline-step.sort::before {
+            background: var(--primary);
+        }
+
+        .pipeline-step.search::before {
+            background: var(--warning);
+        }
+
+        .pipeline-step .step-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .step-type {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .step-desc {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .remove-step {
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: color 0.2s;
+        }
+
+        .remove-step:hover {
+            color: var(--danger);
+            background: rgba(244, 63, 94, 0.1);
+        }
+
+        /* Results Area (Right) */
+        .results-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.5rem;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .card {
+            border-radius: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-panel);
+            border: var(--glass-border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.6);
+            border-color: var(--primary);
+        }
+
+        /* Product Image Placeholder */
+        .card-img {
+            height: 140px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .product-icon {
+            font-size: 3.5rem;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
+        }
+
+        .card-body {
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 1.15rem;
+            line-height: 1.4;
+            color: var(--text-main);
+        }
+
+        .card-brand {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .price-tag {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+        }
+
+        .price-currency {
+            font-size: 0.9rem;
+            color: var(--accent);
+            margin-right: 4px;
+        }
+
+        .card-badge {
+            font-size: 0.7rem;
+            padding: 0.35rem 0.8rem;
+            border-radius: 6px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            backdrop-filter: blur(4px);
+        }
+
+        .stat-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+            margin-top: auto;
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            opacity: 0.6;
+            line-height: 1.5;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="glass">
+        <div>
+            <h1>프리미엄 테크 스토어</h1>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">빌더 패턴 데모 // 스마트 쇼핑 검색</p>
+        </div>
+        <div class="mono" style="font-size: 0.85rem; color: var(--primary);">
+            STORE: OPEN
+        </div>
+    </header>
+
+    <main>
+        <!-- LEFT: BUILDER CONTROLS -->
+        <aside class="builder-panel">
+
+            <div class="glass"
+                style="padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="panel-header">
+                    <span>검색 조건 구성 (Builder)</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14" />
+                    </svg>
+                </div>
+
+                <!-- ADD FILTER -->
+                <div class="control-group">
+                    <label>필터 추가</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <select id="filterField" style="flex: 1;">
+                            <option value="category">카테고리</option>
+                            <option value="brand">브랜드</option>
+                            <option value="stock">재고 상태</option>
+                        </select>
+                        <select id="filterValue" style="flex: 1;">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <button id="addFilterBtn" class="action-btn">
+                        <span>조건 블록 추가</span>
+                    </button>
+                </div>
+
+                <div style="height: 1px; background: var(--border);"></div>
+
+                <!-- ADD SORT -->
+                <div class="control-group">
+                    <label>정렬 기준</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <select id="sortField" style="flex: 1;">
+                            <option value="price">가격</option>
+                            <option value="rating">평점</option>
+                            <option value="name">제품명</option>
+                        </select>
+                        <select id="sortDir" style="width: 100px;">
+                            <option value="asc">오름차순</option>
+                            <option value="desc">내림차순</option>
+                        </select>
+                    </div>
+                    <button id="addSortBtn" class="result-btn secondary-btn"
+                        style="justify-content: center; font-weight: 600;">
+                        정렬 블록 추가
+                    </button>
+                </div>
+
+                <div style="height: 1px; background: var(--border);"></div>
+
+                <!-- SEARCH -->
+                <div class="control-group">
+                    <label>키워드 검색</label>
+                    <input type="text" id="searchInput" placeholder="제품명 검색 (예: 갤럭시, 아이패드)..."
+                        style="font-size: 0.9rem;">
+                </div>
+
+                <div style="margin-top: auto; display: flex; gap: 0.5rem;">
+                    <button id="resetBtn" class="secondary-btn"
+                        style="flex: 1; color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
+                        쿼리 초기화
+                    </button>
+                </div>
+            </div>
+
+            <!-- PIPELINE VISUALIZATION -->
+            <div class="glass"
+                style="padding: 1.5rem; border-radius: 12px; flex: 1; display: flex; flex-direction: column;">
+                <div class="panel-header">
+                    <span>적용된 필터 파이프라인</span>
+                    <span id="stepCount" class="mono"
+                        style="font-size: 0.75rem; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">0
+                        단계</span>
+                </div>
+                <div id="pipelineContainer" class="pipeline-container">
+                    <div class="empty-state" id="pipelineEmpty">
+                        <span style="font-size: 2rem; margin-bottom: 0.5rem;">🛒</span>
+                        <p style="font-size: 0.85rem;">필터가 없습니다.<br>전체 상품이 표시됩니다.</p>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- RIGHT: RESULTS -->
+        <section class="results-area">
+            <div class="panel-header" style="padding: 0 0.5rem;">
+                <span>상품 목록</span>
+                <span id="resultCount" class="mono" style="color: var(--primary);">0 개 조회됨</span>
+            </div>
+
+            <div id="resultsGrid" class="result-grid">
+                <!-- Cards go here -->
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // --- DATA LAYER (Real-life Scenario) ---
+        const CATEGORIES = ['스마트폰', '노트북', '태블릿', '웨어러블', '오디오'];
+        const BRANDS = ['삼성 (Samsung)', '애플 (Apple)', 'LG 전자', '소니 (Sony)', '델 (Dell)'];
+        const STOCKS = ['재고 있음', '품절 임박', '품절'];
+
+        const PRODUCTS = [
+            { id: 1, name: "갤럭시 S24 울트라", brand: "삼성 (Samsung)", category: "스마트폰", price: 1690000, rating: 4.9, stock: "재고 있음" },
+            { id: 2, name: "MacBook Air M3", brand: "애플 (Apple)", category: "노트북", price: 1590000, rating: 4.8, stock: "품절 임박" },
+            { id: 3, name: "LG 그램 16 Pro", brand: "LG 전자", category: "노트북", price: 1850000, rating: 4.7, stock: "재고 있음" },
+            { id: 4, name: "아이패드 프로 13", brand: "애플 (Apple)", category: "태블릿", price: 1990000, rating: 4.9, stock: "재고 있음" },
+            { id: 5, name: "갤럭시 버즈 3 프로", brand: "삼성 (Samsung)", category: "오디오", price: 298000, rating: 4.5, stock: "재고 있음" },
+            { id: 6, name: "WH-1000XM5", brand: "소니 (Sony)", category: "오디오", price: 459000, rating: 4.8, stock: "품절 임박" },
+            { id: 7, name: "갤럭시 워치 7", brand: "삼성 (Samsung)", category: "웨어러블", price: 349000, rating: 4.6, stock: "재고 있음" },
+            { id: 8, name: "애플 워치 울트라 2", brand: "애플 (Apple)", category: "웨어러블", price: 1149000, rating: 4.9, stock: "품절" },
+            { id: 9, name: "XPS 15", brand: "델 (Dell)", category: "노트북", price: 2800000, rating: 4.4, stock: "재고 있음" },
+            { id: 10, name: "갤럭시 탭 S9", brand: "삼성 (Samsung)", category: "태블릿", price: 990000, rating: 4.7, stock: "재고 있음" },
+            { id: 11, name: "스탠바이미 Go", brand: "LG 전자", category: "태블릿", price: 1090000, rating: 4.8, stock: "품절" },
+            { id: 12, name: "아이폰 16 Pro", brand: "애플 (Apple)", category: "스마트폰", price: 1550000, rating: 4.8, stock: "품절 임박" }
+        ];
+
+        // --- ICONS MAPPING ---
+        function getIconForCategory(category) {
+            if (category === '스마트폰') return '📱';
+            if (category === '노트북') return '💻';
+            if (category === '태블릿') return '🖊️';
+            if (category === '웨어러블') return '⌚';
+            if (category === '오디오') return '🎧';
+            return '📦';
+        }
+
+        // --- BUILDER PATTERN LOGIC ---
+
+        class QueryBuilder {
+            constructor(data) {
+                this.sourceData = data;
+                this.steps = [];
+            }
+
+            addFilter(field, value, fieldLabel) {
+                this.steps.push({
+                    id: Date.now() + Math.random(),
+                    type: 'filter',
+                    label: `필터: ${fieldLabel || field} = ${value}`,
+                    fn: (data) => data.filter(item => String(item[field]) === String(value))
+                });
+                return this;
+            }
+
+            addSort(field, direction, fieldLabel) {
+                const dirLabel = direction === 'asc' ? '낮은순' : '높은순';
+                this.steps.push({
+                    id: Date.now() + Math.random(),
+                    type: 'sort',
+                    label: `정렬: ${fieldLabel || field} (${dirLabel})`,
+                    fn: (data) => {
+                        const sorted = [...data].sort((a, b) => {
+                            if (a[field] < b[field]) return direction === 'asc' ? -1 : 1;
+                            if (a[field] > b[field]) return direction === 'asc' ? 1 : -1;
+                            return 0;
+                        });
+                        return sorted;
+                    }
+                });
+                return this;
+            }
+
+            addSearch(query) {
+                this.steps.push({
+                    id: Date.now() + Math.random(),
+                    type: 'search',
+                    label: `검색: "${query}"`,
+                    fn: (data) => data.filter(item => item.name.toLowerCase().includes(query.toLowerCase()))
+                });
+                return this;
+            }
+
+            removeStep(id) {
+                this.steps = this.steps.filter(step => step.id !== id);
+                return this;
+            }
+
+            reset() {
+                this.steps = [];
+                return this;
+            }
+
+            build() {
+                let result = [...this.sourceData];
+                for (const step of this.steps) {
+                    result = step.fn(result);
+                }
+                return result;
+            }
+        }
+
+        // --- UI LOGIC ---
+
+        const builder = new QueryBuilder(PRODUCTS);
+
+        // Elements
+        const pipelineContainer = document.getElementById('pipelineContainer');
+        const pipelineEmpty = document.getElementById('pipelineEmpty');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const resultCount = document.getElementById('resultCount');
+        const stepCount = document.getElementById('stepCount');
+
+        // Render Functions
+        function renderPipeline() {
+            if (builder.steps.length === 0) {
+                pipelineEmpty.style.display = 'flex';
+                Array.from(pipelineContainer.children).forEach(child => {
+                    if (child !== pipelineEmpty) child.remove();
+                });
+            } else {
+                pipelineEmpty.style.display = 'none';
+                Array.from(pipelineContainer.children).forEach(child => {
+                    if (child !== pipelineEmpty) child.remove();
+                });
+
+                builder.steps.forEach(step => {
+                    const el = document.createElement('div');
+                    el.className = `pipeline-step ${step.type}`;
+                    el.innerHTML = `
+                        <div class="step-info">
+                            <span class="step-type">${step.type === 'sort' ? '정렬' : step.type === 'search' ? '검색' : '필터'}</span>
+                            <span class="step-desc">${step.label.replace('필터: ', '').replace('정렬: ', '').replace('검색: ', '')}</span>
+                        </div>
+                        <div class="remove-step" onclick="removeStep(${step.id})">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </div>
+                    `;
+                    pipelineContainer.appendChild(el);
+                });
+            }
+            stepCount.textContent = `${builder.steps.length} 단계`;
+        }
+
+        function renderResults() {
+            const data = builder.build();
+            resultCount.textContent = `${data.length} 개 조회됨`;
+
+            resultsGrid.innerHTML = '';
+
+            if (data.length === 0) {
+                resultsGrid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 4rem; color: var(--text-muted);">
+                        조건에 맞는 상품이 없습니다.
+                    </div>
+                `;
+                return;
+            }
+
+            data.forEach((p, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.animation = `fadeIn 0.3s ease forwards ${index * 0.05}s`;
+                card.style.opacity = '0';
+
+                // Colors
+                let stockColor = 'var(--accent)'; // Green
+                let stockBg = 'rgba(16, 185, 129, 0.1)';
+                if (p.stock === '품절 임박') { stockColor = 'var(--warning)'; stockBg = 'rgba(245, 158, 11, 0.2)'; }
+                if (p.stock === '품절') { stockColor = 'var(--danger)'; stockBg = 'rgba(239, 68, 68, 0.2)'; }
+
+                const icon = getIconForCategory(p.category);
+
+                card.innerHTML = `
+                    <div class="card-img">
+                         <span class="product-icon">${icon}</span>
+                         <span class="card-badge" style="color: ${stockColor}; background: ${stockBg}; border: 1px solid ${stockBg};">${p.stock}</span>
+                    </div>
+
+                    <div class="card-body">
+                        <div>
+                            <span class="card-brand">${p.brand.split('(')[0]}</span>
+                            <span class="card-title">${p.name}</span>
+                        </div>
+                        
+                        <div class="price-tag">
+                            <span class="price-currency">₩</span>${p.price.toLocaleString()}
+                        </div>
+
+                        <div class="stat-grid">
+                            <span style="background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px;">${p.category}</span>
+                            <div style="display:flex; align-items:center; gap:0.3rem;">
+                                <span style="color: #fbbf24;">★</span>
+                                <span style="font-weight:600;">${p.rating}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                resultsGrid.appendChild(card);
+            });
+        }
+
+        function updateUI() {
+            renderPipeline();
+            renderResults();
+        }
+
+        // --- INTERACTION ---
+
+        const filterValueSort = document.getElementById('filterValue');
+        const filterField = document.getElementById('filterField');
+
+        function populateFilterValues() {
+            const field = filterField.value;
+            let options = [];
+            if (field === 'category') options = CATEGORIES;
+            if (field === 'brand') options = BRANDS;
+            if (field === 'stock') options = STOCKS;
+
+            filterValueSort.innerHTML = options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+        }
+
+        filterField.addEventListener('change', populateFilterValues);
+        populateFilterValues(); // Init
+
+        document.getElementById('addFilterBtn').addEventListener('click', () => {
+            const fieldLabel = filterField.options[filterField.selectedIndex].text;
+            builder.addFilter(filterField.value, filterValueSort.value, fieldLabel);
+            updateUI();
+        });
+
+        document.getElementById('addSortBtn').addEventListener('click', () => {
+            const field = document.getElementById('sortField').value;
+            const fieldLabel = document.getElementById('sortField').options[document.getElementById('sortField').selectedIndex].text;
+            const dir = document.getElementById('sortDir').value;
+            builder.addSort(field, dir, fieldLabel);
+            updateUI();
+        });
+
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && searchInput.value.trim() !== '') {
+                builder.addSearch(searchInput.value.trim());
+                searchInput.value = '';
+                updateUI();
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            builder.reset();
+            updateUI();
+        });
+
+        window.removeStep = (id) => {
+            builder.removeStep(id);
+            updateUI();
+        };
+
+        updateUI();
+
+    </script>
+</body>
+
+</html>
